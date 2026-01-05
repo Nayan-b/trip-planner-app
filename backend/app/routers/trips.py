@@ -12,8 +12,44 @@ router = APIRouter(
 )
 
 @router.get("/", response_model=List[schemas.Trip])
-def get_trips(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    trips = db.query(models.Trip).offset(skip).limit(limit).all()
+def get_trips(
+    skip: int = 0, 
+    limit: int = 100, 
+    search: str = None,
+    min_price: float = None,
+    max_price: float = None,
+    min_rating: float = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Get trips with optional search and filter parameters.
+    
+    - **search**: Search in trip name and description
+    - **min_price**: Minimum price filter
+    - **max_price**: Maximum price filter
+    - **min_rating**: Minimum rating filter
+    """
+    query = db.query(models.Trip)
+    
+    # Search filter
+    if search:
+        search_filter = f"%{search}%"
+        query = query.filter(
+            (models.Trip.name.ilike(search_filter)) | 
+            (models.Trip.description.ilike(search_filter))
+        )
+    
+    # Price filters
+    if min_price is not None:
+        query = query.filter(models.Trip.price >= min_price)
+    if max_price is not None:
+        query = query.filter(models.Trip.price <= max_price)
+    
+    # Rating filter
+    if min_rating is not None:
+        query = query.filter(models.Trip.rating >= min_rating)
+    
+    trips = query.offset(skip).limit(limit).all()
     return trips
 
 @router.get("/{trip_id}", response_model=schemas.Trip)
